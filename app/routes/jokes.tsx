@@ -1,33 +1,30 @@
 import type { LinksFunction, LoaderFunction } from "@remix-run/node";
-import type { Joke } from "@prisma/client";
 import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData } from "@remix-run/react";
+import type { UnpackResult } from "domain-functions";
+import { listUserJokes } from "~/domains/jokes";
+import { getUserId, logout } from "~/utils/session.server";
 
-import { db } from "~/utils/db.server";
 import stylesUrl from "~/styles/jokes.css";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: stylesUrl }];
 };
 
-type LoaderData = {
-  jokeListItems: Array<{ id: string; name: string }>;
-};
+type LoaderData = UnpackResult<typeof listUserJokes>;
 
-export const loader: LoaderFunction = async () => {
-  const data: LoaderData = {
-    jokeListItems: await db.joke.findMany({
-      take: 5,
-      select: { id: true, name: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  };
-  return json(data);
+export const loader: LoaderFunction = async ({ request }) => {
+  const result = await listUserJokes(null, await getUserId(request));
+  if (result.errors.length) throw logout(request);
+  return json<LoaderData>(result);
 };
 
 export default function JokesRoute() {
-  const data = useLoaderData<LoaderData>();
+  const result = useLoaderData<LoaderData>();
+  const user = result.success ? result.data.user : null;
+  const jokes = result.success ? result.data.jokes : [];
 
+  // verify if jokes is empty
   return (
     <div className='jokes-layout'>
       <header className='jokes-header'>
@@ -50,7 +47,7 @@ export default function JokesRoute() {
             <Link to='.'>Get a random joke</Link>
             <p>Here are a few more jokes to check out:</p>
             <ul>
-              {data.jokeListItems.map((joke) => (
+              {jokes.map((joke) => (
                 <li key={joke.id}>
                   <Link to={joke.id}>{joke.name}</Link>
                 </li>
