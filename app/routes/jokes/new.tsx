@@ -43,7 +43,7 @@ export const action: ActionFunction = async ({ request }) => {
   return redirect(`/jokes/${result.data.id}?redirectTo=/jokes/new`);
 };
 
-export default function NewJokeRoute() {
+export default () =>  {
   const actionData = useActionData<ActionData>();
   const transition = useTransition();
 
